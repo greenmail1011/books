@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>禪的實踐</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#2b2a28;--bar:#1d1c1b;--fg:#f1ece4;--muted:#a69f94;--accent:#c9a45c}
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;overflow:hidden}
+header{height:48px;display:flex;align-items:center;justify-content:center;padding:0 16px;background:var(--bar);font-size:16px;letter-spacing:.15em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#stage{position:absolute;top:48px;bottom:56px;left:0;right:0;overflow:hidden;}
+#stage{padding:12px}
+#stage.zoomed{overflow:auto;cursor:grab}
+#wrap{transform-origin:0 0;width:100%;height:100%}
+#book{width:100%;height:100%}
+.page{background:#fff}
+.page .img{position:absolute;inset:0;background:center/100% 100% no-repeat}
+.page .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:14px}
+.page.ready .loading{display:none}
+footer{position:absolute;bottom:0;left:0;right:0;height:56px;background:var(--bar);display:flex;align-items:center;justify-content:center;gap:6px;padding:0 8px}
+button{background:none;border:0;color:var(--fg);width:40px;height:40px;border-radius:8px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+button:hover{background:rgba(255,255,255,.08)}
+button:disabled{opacity:.3;cursor:default}
+button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#pg{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);margin:0 6px}
+#pg input{width:52px;height:32px;border-radius:6px;border:1px solid #555;background:#2f2e2c;color:var(--fg);text-align:center;font-size:14px;-webkit-user-select:text;user-select:text}
+.sep{width:1px;height:24px;background:#444;margin:0 4px}
+@media (max-width:480px){.hide-sm{display:none}}
+</style>
+</head>
+<body oncontextmenu="return false">
+<header>禪的實踐</header>
+<div id="stage"><div id="wrap"><div id="book"></div></div></div>
+<footer>
+  <button id="first" title="第一頁" class="hide-sm"><svg viewBox="0 0 24 24"><path d="M11 18l-6-6 6-6M18 18l-6-6 6-6"/></svg></button>
+  <button id="prev" title="上一頁"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <div id="pg"><input id="num" inputmode="numeric" aria-label="頁碼"><span>/ <b id="total"></b></span></div>
+  <button id="next" title="下一頁"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+  <button id="last" title="最後一頁" class="hide-sm"><svg viewBox="0 0 24 24"><path d="M13 18l6-6-6-6M6 18l6-6-6-6"/></svg></button>
+  <span class="sep"></span>
+  <button id="zoom" title="放大"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5M11 8v6M8 11h6"/></svg></button>
+  <button id="fs" title="全螢幕"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</footer>
+<script src="../assets/page-flip.browser.js"></script>
+<script>
+(function(){
+const N=60, W=1132, H=1600;
+const src=i=>'pages/'+String(i+1).padStart(3,'0')+'.webp';
+const book=document.getElementById('book'), stage=document.getElementById('stage'), wrap=document.getElementById('wrap');
+for(let i=0;i<N;i++){const d=document.createElement('div');d.className='page';d.dataset.density=(i===0||i===N-1)?'hard':'soft';d.innerHTML='<div class="loading">'+(i+1)+'</div><div class="img"></div>';book.appendChild(d)}
+const els=[...book.children], loaded=new Set();
+function load(c){for(let i=Math.max(0,c-4);i<=Math.min(N-1,c+6);i++){if(loaded.has(i))continue;loaded.add(i);const im=new Image(),el=els[i];im.onload=()=>{el.querySelector('.img').style.backgroundImage='url('+im.src+')';el.classList.add('ready')};im.src=src(i)}}
+const pf=new St.PageFlip(book,{width:W,height:H,size:'stretch',minWidth:320,maxWidth:3000,minHeight:200,maxHeight:4000,autoSize:true,showCover:true,usePortrait:true,maxShadowOpacity:.4,mobileScrollSupport:false,flippingTime:700});
+load(0);
+pf.loadFromHTML(els);
+const num=document.getElementById('num');document.getElementById('total').textContent=N;
+function ui(){const i=pf.getCurrentPageIndex();num.value=i+1;load(i);document.getElementById('prev').disabled=document.getElementById('first').disabled=i<=0;document.getElementById('next').disabled=document.getElementById('last').disabled=i>=N-1}
+pf.on('flip',ui);pf.on('changeOrientation',ui);ui();
+document.getElementById('prev').onclick=()=>pf.flipPrev();
+document.getElementById('next').onclick=()=>pf.flipNext();
+document.getElementById('first').onclick=()=>{pf.turnToPage(0);ui()};
+document.getElementById('last').onclick=()=>{pf.turnToPage(N-1);ui()};
+num.onchange=()=>{let v=Math.min(N,Math.max(1,parseInt(num.value)||1));load(v-1);pf.turnToPage(v-1);ui()};
+num.onkeydown=e=>{if(e.key==='Enter')num.blur()};
+document.addEventListener('keydown',e=>{if(e.target===num)return;if(e.key==='ArrowLeft')pf.flipPrev();if(e.key==='ArrowRight')pf.flipNext()});
+let z=1;document.getElementById('zoom').onclick=()=>{z=z===1?1.8:1;wrap.style.transform=z===1?'':'scale('+z+')';stage.classList.toggle('zoomed',z!==1);if(z!==1){stage.scrollLeft=(stage.scrollWidth-stage.clientWidth)/2}};
+document.getElementById('fs').onclick=()=>{const d=document.documentElement;if(!document.fullscreenElement){(d.requestFullscreen||d.webkitRequestFullscreen||function(){}).call(d)}else{document.exitFullscreen()}};
+document.addEventListener('dragstart',e=>e.preventDefault());
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&['s','p','u'].includes(e.key.toLowerCase()))e.preventDefault()});
+})();
+</script>
+</body>
+</html>
