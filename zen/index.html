@@ -14,6 +14,7 @@ header{height:48px;display:flex;align-items:center;justify-content:center;paddin
 #stage{padding:12px}
 #stage.zoomed{overflow:auto;cursor:grab}
 #wrap{transform-origin:0 0;width:100%;height:100%}
+#book{transition:transform .7s ease}
 #book{width:100%;height:100%}
 .page{background:#fff}
 .page .img{position:absolute;inset:0;background:center/100% 100% no-repeat}
@@ -49,7 +50,7 @@ button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;s
 const N=60, W=1132, H=1600;
 const src=i=>'pages/'+String(i+1).padStart(3,'0')+'.webp';
 const book=document.getElementById('book'), stage=document.getElementById('stage'), wrap=document.getElementById('wrap');
-for(let i=0;i<N;i++){const d=document.createElement('div');d.className='page';d.dataset.density=(i===0||i===N-1)?'hard':'soft';d.innerHTML='<div class="loading">'+(i+1)+'</div><div class="img"></div>';book.appendChild(d)}
+for(let i=0;i<N;i++){const d=document.createElement('div');d.className='page';d.dataset.density='soft';d.innerHTML='<div class="loading">'+(i+1)+'</div><div class="img"></div>';book.appendChild(d)}
 const els=[...book.children], loaded=new Set();
 function load(c){for(let i=Math.max(0,c-4);i<=Math.min(N-1,c+6);i++){if(loaded.has(i))continue;loaded.add(i);const im=new Image(),el=els[i];im.onload=()=>{el.querySelector('.img').style.backgroundImage='url('+im.src+')';el.classList.add('ready')};im.src=src(i)}}
 const pf=new St.PageFlip(book,{width:W,height:H,size:'stretch',minWidth:320,maxWidth:3000,minHeight:200,maxHeight:4000,autoSize:true,showCover:true,usePortrait:true,maxShadowOpacity:.4,mobileScrollSupport:false,flippingTime:700});
@@ -57,14 +58,17 @@ load(0);
 pf.loadFromHTML(els);
 const num=document.getElementById('num');document.getElementById('total').textContent=N;
 function ui(){const i=pf.getCurrentPageIndex();num.value=i+1;load(i);document.getElementById('prev').disabled=document.getElementById('first').disabled=i<=0;document.getElementById('next').disabled=document.getElementById('last').disabled=i>=N-1}
-pf.on('flip',ui);pf.on('changeOrientation',ui);ui();
-document.getElementById('prev').onclick=()=>pf.flipPrev();
-document.getElementById('next').onclick=()=>pf.flipNext();
-document.getElementById('first').onclick=()=>{pf.turnToPage(0);ui()};
-document.getElementById('last').onclick=()=>{pf.turnToPage(N-1);ui()};
-num.onchange=()=>{let v=Math.min(N,Math.max(1,parseInt(num.value)||1));load(v-1);pf.turnToPage(v-1);ui()};
+function shift(idx){let x=0;if(pf.getOrientation()==='landscape'){const pw=pf.getBoundsRect().pageWidth;if(idx===0)x=-pw/2;else if(idx>=N-1&&N%2===0)x=pw/2}book.style.transform=x?'translateX('+x+'px)':''}
+function next(){const i=pf.getCurrentPageIndex();if(i<N-1){shift(i===0?1:(i+2>=N-1?N-1:i+2));pf.flipNext()}}
+function prev(){const i=pf.getCurrentPageIndex();if(i>0){shift(i<=2?0:i-2);pf.flipPrev()}}
+pf.on('flip',e=>{shift(e.data);ui()});pf.on('changeOrientation',()=>{shift(pf.getCurrentPageIndex());ui()});ui();book.style.transition='none';shift(0);requestAnimationFrame(()=>requestAnimationFrame(()=>book.style.transition=''));
+document.getElementById('prev').onclick=prev;
+document.getElementById('next').onclick=next;
+document.getElementById('first').onclick=()=>{pf.turnToPage(0);shift(0);ui()};
+document.getElementById('last').onclick=()=>{pf.turnToPage(N-1);shift(N-1);ui()};
+num.onchange=()=>{let v=Math.min(N,Math.max(1,parseInt(num.value)||1));load(v-1);pf.turnToPage(v-1);shift(pf.getCurrentPageIndex());ui()};
 num.onkeydown=e=>{if(e.key==='Enter')num.blur()};
-document.addEventListener('keydown',e=>{if(e.target===num)return;if(e.key==='ArrowLeft')pf.flipPrev();if(e.key==='ArrowRight')pf.flipNext()});
+document.addEventListener('keydown',e=>{if(e.target===num)return;if(e.key==='ArrowLeft')prev();if(e.key==='ArrowRight')next()});
 let z=1;document.getElementById('zoom').onclick=()=>{z=z===1?1.8:1;wrap.style.transform=z===1?'':'scale('+z+')';stage.classList.toggle('zoomed',z!==1);if(z!==1){stage.scrollLeft=(stage.scrollWidth-stage.clientWidth)/2}};
 document.getElementById('fs').onclick=()=>{const d=document.documentElement;if(!document.fullscreenElement){(d.requestFullscreen||d.webkitRequestFullscreen||function(){}).call(d)}else{document.exitFullscreen()}};
 document.addEventListener('dragstart',e=>e.preventDefault());
